@@ -2,7 +2,7 @@
 
 This is a training project. The goal of the project is to master the basics of developing mobile Android applications.
 
-![Image of Yaktocat](https://github.com/af2905/Job4j-Exam/blob/master/app/images/simplePlayer.png)
+![Image of Yaktocat](https://github.com/af2905/simpleplayer/blob/master/app/images/simplePlayer.png)
 
 After pressing the play button, a music track is played.
 When you press the same button again, playback is paused.
