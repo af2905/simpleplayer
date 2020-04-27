@@ -2,6 +2,7 @@ package ru.job4j.simpleplayer;
 
 import android.content.Context;
 import android.media.MediaPlayer;
+import android.net.Uri;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -18,6 +19,10 @@ class Player {
 
     MediaPlayer createMediaPlayer(int resourceID) {
         return MediaPlayer.create(this.context, resourceID);
+    }
+
+    MediaPlayer createMediaPlayer(Uri uri) {
+        return MediaPlayer.create(this.context, uri);
     }
 
     Map<Integer, String> infoFromFields(Field[] fields) {

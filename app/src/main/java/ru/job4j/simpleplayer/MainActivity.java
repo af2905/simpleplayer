@@ -1,6 +1,8 @@
 package ru.job4j.simpleplayer;
 
+import android.content.Intent;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -25,11 +27,9 @@ public class MainActivity extends AppCompatActivity
     private ImageButton play, previous, next;
     private TextView text, time;
     private SeekBar seek;
-    private CheckBox loop;
-    private Map<Integer, String> map;
     private List<Integer> fieldsIds;
     private List<String> trackNames;
-    int position = 0;
+    private int position = 0;
     private Handler handler = new Handler();
 
     @Override
@@ -47,22 +47,27 @@ public class MainActivity extends AppCompatActivity
         seek.setEnabled(false);
         text = findViewById(R.id.text);
         time = findViewById(R.id.time);
-        loop = findViewById(R.id.loop);
+        CheckBox loop = findViewById(R.id.loop);
         loop.setOnCheckedChangeListener(this);
         player = new Player(getApplicationContext());
-        map = player.infoFromFields(R.raw.class.getFields());
-        fieldsIds = new ArrayList<>(map.keySet());
-        trackNames = new ArrayList<>(map.values());
-        media = player.createMediaPlayer(fieldsIds.get(position));
+        fieldsIds = new ArrayList<>();
+        trackNames = new ArrayList<>();
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        String type = intent.getType();
+        Uri audioUri = intent.getData();
+        if (Intent.ACTION_VIEW.equals(action) && type != null) {
+            if ("audio/*".equals(type)) {
+                media = player.createMediaPlayer(audioUri);
+            }
+        } else {
+            Map<Integer, String> map = player.infoFromFields(R.raw.class.getFields());
+            fieldsIds = new ArrayList<>(map.keySet());
+            trackNames = new ArrayList<>(map.values());
+            media = player.createMediaPlayer(fieldsIds.get(position));
+        }
         seek.setMax(media.getDuration());
         seek.setOnSeekBarChangeListener(this);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        media.release();
-        media = null;
     }
 
     @Override
@@ -70,9 +75,15 @@ public class MainActivity extends AppCompatActivity
         handler.postDelayed(updateSongTime, 100);
         switch (v.getId()) {
             case R.id.play:
-                text.setText(trackNames.get(position));
+                if (trackNames.size() == 0) {
+                    next.setEnabled(false);
+                    previous.setEnabled(false);
+                }
                 seek.setClickable(true);
                 seek.setEnabled(true);
+                if (trackNames.size() != 0) {
+                    text.setText(trackNames.get(position));
+                }
                 if (media.isPlaying()) {
                     play.setImageResource(R.drawable.ic_play);
                     media.pause();
@@ -82,11 +93,11 @@ public class MainActivity extends AppCompatActivity
                 }
                 break;
             case R.id.previous:
-                next.setEnabled(true);
                 if (position == 0) {
                     previous.setEnabled(false);
                     return;
                 } else {
+                    next.setEnabled(true);
                     media.release();
                     position--;
                     text.setText(trackNames.get(position));
@@ -148,6 +159,13 @@ public class MainActivity extends AppCompatActivity
         if (media != null) {
             media.setLooping(isChecked);
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        media.release();
+        media = null;
     }
 }
 
