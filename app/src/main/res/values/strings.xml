@@ -4,4 +4,5 @@
     <string name="pause">| |</string>
     <string name="previous"><![CDATA[<<]]></string>
     <string name="next"><![CDATA[>>]]></string>
+    <string name="last_track">This is the last audio track</string>
 </resources>
