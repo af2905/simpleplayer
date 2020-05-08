@@ -29,6 +29,7 @@ public class PlayerViewModel extends AndroidViewModel {
     private MutableLiveData<Integer> currentTrackId = new MutableLiveData<>();
     private MutableLiveData<String> currentTrackName = new MutableLiveData<>();
     private MutableLiveData<Integer> currentTime = new MutableLiveData<>();
+    private MutableLiveData<Boolean> isPlaying = new MutableLiveData<>();
 
     PlayerViewModel(Application application, Uri uri) {
         super(application);
@@ -37,6 +38,8 @@ public class PlayerViewModel extends AndroidViewModel {
     }
 
     public MediaPlayer isReceivedARequestToPlay() {
+        List<String> list = new ArrayList<>();
+        trackNames.setValue(list);
         media.setValue(player.createMediaPlayer(uriLiveData.getValue()));
         return player.createMediaPlayer(uriLiveData.getValue());
     }
@@ -87,5 +90,17 @@ public class PlayerViewModel extends AndroidViewModel {
 
     private void setCurrentTime(MutableLiveData<Integer> currentTime) {
         this.currentTime = currentTime;
+    }
+
+    public void setCurrentTrackName(MutableLiveData<String> currentTrackName) {
+        this.currentTrackName = currentTrackName;
+    }
+
+    public LiveData<Boolean> getIsPlaying() {
+        return isPlaying;
+    }
+
+    public void setIsPlaying(MutableLiveData<Boolean> isPlaying) {
+        this.isPlaying = isPlaying;
     }
 }

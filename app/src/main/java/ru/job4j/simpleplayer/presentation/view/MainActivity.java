@@ -48,23 +48,18 @@ public class MainActivity extends AppCompatActivity
         findViews();
         setListeners();
         checkInputAndCreateMediaPlayer();
-        if (Objects.requireNonNull(model.getTrackNames().getValue()).size() == 0) {
-            next.setEnabled(false);
-            previous.setEnabled(false);
-        }
         seek.setMax(media.getDuration());
     }
 
     void findViews() {
         play = findViewById(R.id.play);
         previous = findViewById(R.id.previous);
-        previous.setEnabled(false);
         next = findViewById(R.id.next);
         seek = findViewById(R.id.seek);
-        seek.setEnabled(false);
         text = findViewById(R.id.text);
         time = findViewById(R.id.time);
         loop = findViewById(R.id.loop);
+        seek.setEnabled(false);
     }
 
     void setListeners() {
@@ -80,24 +75,31 @@ public class MainActivity extends AppCompatActivity
         String action = intent.getAction();
         String type = intent.getType();
         Uri uri = intent.getData();
+        model = ViewModelProviders.of(
+                this, new PlayerViewModelFactory(getApplication(), uri))
+                .get(PlayerViewModel.class);
         if (Intent.ACTION_VIEW.equals(action) && type != null) {
             if ("audio/*".equals(type)) {
-                model = ViewModelProviders.of(
-                        this, new PlayerViewModelFactory(getApplication(), uri)).get(PlayerViewModel.class);
                 media = model.isReceivedARequestToPlay();
             }
         } else {
-            model = ViewModelProviders.of(
-                    this, new PlayerViewModelFactory(getApplication(), uri)).get(PlayerViewModel.class);
             model.getSongsLiveData();
-            LiveData<String> currentName = model.getCurrentTrackName();
             media = model.isRegularPlayerForSongs();
-            LiveData<Integer> currentTime = model.getCurrentTime();
-            observeChanges(currentName, currentTime);
         }
+        if (Objects.requireNonNull(model.getTrackNames().getValue()).size() == 0) {
+            MutableLiveData<String> name = new MutableLiveData<>();
+            name.setValue(null);
+            model.setCurrentTrackName(name);
+        }
+        LiveData<String> currentName = model.getCurrentTrackName();
+        LiveData<Integer> currentTime = model.getCurrentTime();
+        LiveData<Boolean> isPlaying = model.getIsPlaying();
+        observeChanges(currentName, currentTime, isPlaying);
     }
 
-    void observeChanges(LiveData<String> currentName, final LiveData<Integer> currentTime) {
+    void observeChanges(LiveData<String> currentName,
+                        LiveData<Integer> currentTime,
+                        LiveData<Boolean> isPlaying) {
         currentName.observe(this, s -> text.setText(s));
         currentTime.observe(this, integer -> {
             if (integer != 0) {
@@ -108,47 +110,56 @@ public class MainActivity extends AppCompatActivity
             }
             Log.d(TAG, "currentTrackTime: " + integer);
         });
+        isPlaying.observe(this, aBoolean -> {
+            if (aBoolean) {
+                play.setImageResource(R.drawable.ic_pause);
+                media.start();
+                updateTime();
+            }
+        });
     }
 
     @Override
     public void onClick(View v) {
         MutableLiveData<Integer> changedPosition = new MutableLiveData<>();
-        int size = Objects.requireNonNull(model.getTrackNames().getValue()).size();
-        int position = model.getPosition().getValue();
-
+        MutableLiveData<Boolean> isPlaying = new MutableLiveData<>();
+        int position = 0;
+        if (Objects.requireNonNull(model.getTrackNames().getValue()).size() != 0) {
+            position = model.getPosition().getValue();
+        } else {
+            previous.setEnabled(false);
+            next.setEnabled(false);
+        }
         switch (v.getId()) {
             case R.id.play:
                 seek.setClickable(true);
                 seek.setEnabled(true);
-                if (size != 0) {
+                if (model.getTrackNames().getValue().size() != 0) {
                     text.setText(model.getCurrentTrackName().getValue());
                 }
                 if (media.isPlaying()) {
                     play.setImageResource(R.drawable.ic_play);
                     media.pause();
+                    isPlaying.setValue(false);
+                    model.setIsPlaying(isPlaying);
                     disposable.dispose();
                 } else {
                     play.setImageResource(R.drawable.ic_pause);
                     media.start();
+                    isPlaying.setValue(true);
+                    model.setIsPlaying(isPlaying);
                     updateTime();
                 }
                 break;
             case R.id.next:
                 previous.setEnabled(true);
-                if (model.getPosition().getValue() == size - 1) {
+                if (position == model.getTrackNames().getValue().size() - 1) {
                     next.setEnabled(false);
                     Toast.makeText(getApplicationContext(),
                             R.string.last_track, Toast.LENGTH_SHORT).show();
                     return;
                 } else {
-                    media.release();
-                    disposable.dispose();
-                    changedPosition.setValue(++position);
-                    model.setPosition(changedPosition);
-                    media = model.isRegularPlayerForSongs();
-                    seek.setProgress(media.getCurrentPosition());
-                    media.start();
-                    updateTime();
+                    checkedNextOrPreviousByDefault(changedPosition, isPlaying, ++position);
                 }
                 break;
             case R.id.previous:
@@ -157,13 +168,7 @@ public class MainActivity extends AppCompatActivity
                     return;
                 } else {
                     next.setEnabled(true);
-                    media.release();
-                    changedPosition.setValue(--position);
-                    model.setPosition(changedPosition);
-                    media = model.isRegularPlayerForSongs();
-                    seek.setProgress(media.getCurrentPosition());
-                    media.start();
-                    updateTime();
+                    checkedNextOrPreviousByDefault(changedPosition, isPlaying, --position);
                 }
                 break;
             default:
@@ -175,6 +180,7 @@ public class MainActivity extends AppCompatActivity
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
         if (fromUser) {
             media.seekTo(progress);
+            updateTime();
         }
     }
 
@@ -204,6 +210,23 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
+    void checkedNextOrPreviousByDefault(MutableLiveData<Integer> changedPosition,
+                                        MutableLiveData<Boolean> isPlaying,
+                                        int position) {
+        media.release();
+        if (disposable != null) {
+            disposable.dispose();
+        }
+        changedPosition.setValue(position);
+        model.setPosition(changedPosition);
+        media = model.isRegularPlayerForSongs();
+        seek.setProgress(media.getCurrentPosition());
+        media.start();
+        isPlaying.setValue(true);
+        model.setIsPlaying(isPlaying);
+        updateTime();
+    }
+
     @Override
     public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
         if (media != null) {
@@ -217,8 +240,10 @@ public class MainActivity extends AppCompatActivity
         if (this.disposable != null) {
             this.disposable.dispose();
         }
-        media.release();
-        media = null;
+        if (media != null) {
+            media.release();
+            media = null;
+        }
     }
 }
 
