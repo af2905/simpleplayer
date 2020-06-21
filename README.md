@@ -1,4 +1,4 @@
-# simpleplayer
+# Simpleplayer
 
 This is a training project. The goal of the project is to master the basics of developing mobile Android applications.
 
